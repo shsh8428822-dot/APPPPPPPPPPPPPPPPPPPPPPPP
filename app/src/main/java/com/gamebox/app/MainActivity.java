@@ -48,7 +48,10 @@ public class MainActivity extends Activity {
     new Game("guess", "נחש את המספר", "הרפתקאות", "מצא מספר סודי בין 1 ל-100"),
     new Game("words", "אתגר מילים", "מילים", "בחר את המילה המתאימה"),
     new Game("lights", "כיבוי אורות", "אסטרטגיה", "כבה את כל האורות בלוח"),
-    new Game("penalty", "דו-קרב פנדלים", "ספורט", "בעט לפינות ונסה להבקיע")
+    new Game("penalty", "דו-קרב פנדלים", "ספורט", "בעט לפינות ונסה להבקיע"),
+    new Game("connect", "ארבע בשורה", "אסטרטגיה", "שני שחקנים — חבר ארבעה סמלים ברצף"),
+    new Game("master", "קוד סודי", "חשיבה", "גלה את רצף ארבע הספרות"),
+    new Game("slide", "פאזל הזזה", "הרפתקאות", "סדר את המספרים לפי הסדר")
   };
 
   // Shared game state
@@ -71,6 +74,14 @@ public class MainActivity extends Activity {
   private long lastTapTime;
   private long raceReadyAt;
   private boolean racePending, raceSignal, raceFalseStart;
+  private int[] connectBoard;
+  private int connectTurn = 1;
+  private boolean connectDone;
+  private int[] masterSecret;
+  private int masterTries;
+  private String masterHint = "נחש רצף של ארבע ספרות שונות בין 1 ל-6";
+  private int[] slideBoard;
+  private int slideMoves;
 
   @Override public void onCreate(Bundle state) {
     super.onCreate(state);
@@ -142,6 +153,9 @@ public class MainActivity extends Activity {
     if (g.id.equals("math")) { mathCorrect = 0; newMath(); }
     if (g.id.equals("tap")) { tapCount = 0; tapStart = 0; lastTapTime = 0; }
     if (g.id.equals("race")) { raceReadyAt = 0; racePending = false; raceSignal = false; raceFalseStart = false; }
+    if (g.id.equals("connect")) { connectBoard = new int[42]; connectTurn = 1; connectDone = false; }
+    if (g.id.equals("master")) initMaster();
+    if (g.id.equals("slide")) initSlide();
     if (g.id.equals("words")) { wordScore = 0; wordIndex = random.nextInt(WORD_Q.length); }
     if (g.id.equals("lights")) initLights();
     if (g.id.equals("penalty")) { penaltyRound = 0; penaltyGoals = 0; }
@@ -167,6 +181,9 @@ public class MainActivity extends Activity {
       case "words": renderWords(); break;
       case "lights": renderLights(); break;
       case "penalty": renderPenalty(); break;
+      case "connect": renderConnect(); break;
+      case "master": renderMaster(); break;
+      case "slide": renderSlide(); break;
     }
     addGap(page, 16);
     addButton(page, "↻  התחל משחק מחדש", v -> launch(currentGame), false);
@@ -242,6 +259,91 @@ public class MainActivity extends Activity {
       page.addView(row,matchWrap());
     }
     addButton(page,"סיבוב חדש",v->{xoBoard=new int[9];xoTurn=1;xoDone=false;renderGame();},false);
+  }
+
+
+  private void renderConnect() {
+    TextView info=text(connectDone?"הסיבוב הסתיים":(connectTurn==1?"תור השחקן האדום":"תור השחקן הירוק"),18,LIGHT);
+    info.setGravity(Gravity.CENTER);page.addView(info,matchWrap());
+    for(int r=0;r<6;r++){
+      LinearLayout row=new LinearLayout(this);
+      for(int col=0;col<7;col++){
+        final int cc=col;int value=connectBoard[r*7+col];
+        Button b=smallButton(value==1?"🔴":(value==2?"🟢":"·"));b.setTextSize(18);
+        b.setEnabled(!connectDone);
+        b.setOnClickListener(v->dropConnect(cc));
+        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,45,1);p.setMargins(1,2,1,2);row.addView(b,p);
+      }
+      page.addView(row,matchWrap());
+    }
+    addButton(page,"משחק חדש",v->{connectBoard=new int[42];connectTurn=1;connectDone=false;renderGame();},false);
+  }
+
+  private void dropConnect(int col) {
+    if(connectDone)return;
+    for(int row=5;row>=0;row--){
+      int index=row*7+col;
+      if(connectBoard[index]==0){
+        connectBoard[index]=connectTurn;sound();
+        if(connectHasWon(connectTurn)){connectDone=true;renderGame();finishStage(connectTurn==1?"השחקן האדום ניצח!":"השחקן הירוק ניצח!");return;}
+        boolean full=true;for(int x:connectBoard)if(x==0){full=false;break;}
+        if(full){connectDone=true;renderGame();toast("תיקו!");return;}
+        connectTurn=3-connectTurn;renderGame();return;
+      }
+    }
+  }
+
+  private boolean connectHasWon(int player) {
+    int[][] dirs={{0,1},{1,0},{1,1},{1,-1}};
+    for(int r=0;r<6;r++)for(int col=0;col<7;col++)if(connectBoard[r*7+col]==player){
+      for(int[] d:dirs){int count=1;for(int k=1;k<4;k++){int rr=r+d[0]*k,cc=col+d[1]*k;if(rr<0||rr>=6||cc<0||cc>=7||connectBoard[rr*7+cc]!=player)break;count++;}if(count==4)return true;}
+    }
+    return false;
+  }
+
+  private void initMaster() {
+    masterSecret=new int[4];List<Integer> digits=new ArrayList<>();for(int i=1;i<=6;i++)digits.add(i);Collections.shuffle(digits,random);
+    for(int i=0;i<4;i++)masterSecret[i]=digits.get(i);
+    masterTries=0;masterHint="נחש רצף של ארבע ספרות שונות בין 1 ל-6";
+  }
+
+  private void renderMaster() {
+    TextView info=text(masterHint,17,LIGHT);info.setGravity(Gravity.CENTER);page.addView(info,matchWrap());
+    TextView tries=text("ניסיונות: "+masterTries+" / 8",15,LIGHT);tries.setGravity(Gravity.CENTER);page.addView(tries,matchWrap());
+    EditText input=edit("לדוגמה 1234");input.setInputType(InputType.TYPE_CLASS_NUMBER);page.addView(input,matchWrap());
+    addButton(page,"בדוק קוד",v->{
+      String value=input.getText().toString().trim();
+      if(value.length()!=4){toast("צריך להכניס ארבע ספרות");return;}
+      boolean[] seen=new boolean[7];int exact=0,close=0;
+      for(int i=0;i<4;i++){int n=value.charAt(i)-'0';if(n<1||n>6||seen[n]){toast("השתמש בספרות שונות מ-1 עד 6");return;}seen[n]=true;if(n==masterSecret[i])exact++;else for(int j=0;j<4;j++)if(n==masterSecret[j])close++;}
+      if(exact==4){renderGame();finishStage("פיצחת את הקוד הסודי!");return;}
+      masterTries++;masterHint="במקום הנכון: "+exact+"  •  קיימות אך במקום אחר: "+close;
+      if(masterTries>=8){String answer="הקוד היה "+masterSecret[0]+masterSecret[1]+masterSecret[2]+masterSecret[3];initMaster();masterHint="לא הפעם. "+answer+" — נסה קוד חדש.";renderGame();return;}
+      renderGame();
+    },true);
+  }
+
+  private void initSlide() {
+    slideBoard=new int[]{1,2,3,4,5,6,7,8,0};slideMoves=0;int previous=-1;
+    for(int n=0;n<70;n++){int zero=0;for(int i=0;i<9;i++)if(slideBoard[i]==0)zero=i;List<Integer> choices=new ArrayList<>();int r=zero/3,col=zero%3;if(r>0&&zero-3!=previous)choices.add(zero-3);if(r<2&&zero+3!=previous)choices.add(zero+3);if(col>0&&zero-1!=previous)choices.add(zero-1);if(col<2&&zero+1!=previous)choices.add(zero+1);int pick=choices.get(random.nextInt(choices.size()));slideBoard[zero]=slideBoard[pick];slideBoard[pick]=0;previous=zero;}
+  }
+
+  private void renderSlide() {
+    TextView info=text("הזז את האריחים למקומם. מהלכים: "+slideMoves,16,LIGHT);info.setGravity(Gravity.CENTER);page.addView(info,matchWrap());
+    for(int r=0;r<3;r++){
+      LinearLayout row=new LinearLayout(this);
+      for(int col=0;col<3;col++){final int i=r*3+col;Button b=smallButton(slideBoard[i]==0?" ":String.valueOf(slideBoard[i]));b.setTextSize(24);b.setEnabled(slideBoard[i]!=0);b.setOnClickListener(v->slideMove(i));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,76,1);p.setMargins(3,3,3,3);row.addView(b,p);}
+      page.addView(row,matchWrap());
+    }
+  }
+
+  private void slideMove(int index) {
+    int zero=0;for(int i=0;i<9;i++)if(slideBoard[i]==0)zero=i;
+    int r=index/3,c=index%3,zr=zero/3,zc=zero%3;
+    if(Math.abs(r-zr)+Math.abs(c-zc)!=1)return;
+    slideBoard[zero]=slideBoard[index];slideBoard[index]=0;slideMoves++;sound();renderGame();
+    boolean solved=true;for(int i=0;i<8;i++)if(slideBoard[i]!=i+1)solved=false;
+    if(solved)finishStage("השלמת את הפאזל ב-"+slideMoves+" מהלכים!");
   }
 
   private void render2048() {
