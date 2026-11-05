@@ -42,6 +42,7 @@ public class MainActivity extends Activity {
     new Game("xo", "איקס עיגול", "אסטרטגיה", "שני שחקנים על אותו מכשיר"),
     new Game("2048", "2048", "חשיבה", "מזג מספרים והגע ל-2048"),
     new Game("tap", "אתגר מהירות", "ארקייד", "כמה מהר תוכל ללחוץ 20 פעמים?"),
+    new Game("race", "מרוץ תגובה", "מירוצים", "הזנק את המכונית רק כשהרמזור ירוק"),
     new Game("math", "אתגר חשבון", "חשיבה", "פתור חמש שאלות ברצף"),
     new Game("rps", "אבן נייר ומספריים", "קלפים", "שחק מול המחשב"),
     new Game("guess", "נחש את המספר", "הרפתקאות", "מצא מספר סודי בין 1 ל-100"),
@@ -68,6 +69,8 @@ public class MainActivity extends Activity {
   private boolean[][] lights;
   private int penaltyRound, penaltyGoals;
   private long lastTapTime;
+  private long raceReadyAt;
+  private boolean racePending, raceSignal, raceFalseStart;
 
   @Override public void onCreate(Bundle state) {
     super.onCreate(state);
@@ -138,6 +141,7 @@ public class MainActivity extends Activity {
     if (g.id.equals("guess")) { secret = random.nextInt(100) + 1; guessCount = 0; }
     if (g.id.equals("math")) { mathCorrect = 0; newMath(); }
     if (g.id.equals("tap")) { tapCount = 0; tapStart = 0; lastTapTime = 0; }
+    if (g.id.equals("race")) { raceReadyAt = 0; racePending = false; raceSignal = false; raceFalseStart = false; }
     if (g.id.equals("words")) { wordScore = 0; wordIndex = random.nextInt(WORD_Q.length); }
     if (g.id.equals("lights")) initLights();
     if (g.id.equals("penalty")) { penaltyRound = 0; penaltyGoals = 0; }
@@ -156,6 +160,7 @@ public class MainActivity extends Activity {
       case "xo": renderXO(); break;
       case "2048": render2048(); break;
       case "tap": renderTap(); break;
+      case "race": renderRace(); break;
       case "math": renderMath(); break;
       case "rps": renderRps(); break;
       case "guess": renderGuess(); break;
@@ -282,6 +287,39 @@ public class MainActivity extends Activity {
       else renderGame();
     });
     page.addView(b,new LinearLayout.LayoutParams(-1,115));
+  }
+
+
+  private void renderRace() {
+    TextView info = text(raceFalseStart ? "זינוק מוקדם! פסילה." :
+      (raceSignal ? "🟢 אור ירוק! סע עכשיו!" :
+      (racePending ? "🔴 אור אדום — המתן..." : "מוכן למרוץ? חכה לאור הירוק.")), 20, LIGHT);
+    info.setGravity(Gravity.CENTER); page.addView(info, matchWrap());
+    if (raceFalseStart) {
+      addButton(page, "נסה שוב", v -> launch(currentGame), true);
+    } else if (!racePending) {
+      addButton(page, "התחל מרוץ", v -> {
+        racePending = true; raceSignal = false;
+        raceReadyAt = android.os.SystemClock.elapsedRealtime() + 1800 + random.nextInt(2800);
+        renderGame();
+        handler.postDelayed(() -> {
+          if (currentGame != null && currentGame.id.equals("race") && racePending) {
+            raceSignal = true; sound(); renderGame();
+          }
+        }, raceReadyAt - android.os.SystemClock.elapsedRealtime());
+      }, true);
+    } else if (!raceSignal) {
+      addButton(page, "לחץ רק כשהאור ירוק!", v -> {
+        raceFalseStart = true; racePending = false; renderGame();
+      }, false);
+    } else {
+      addButton(page, "🏎  סע!", v -> {
+        long ms = android.os.SystemClock.elapsedRealtime() - raceReadyAt;
+        racePending = false; raceSignal = false;
+        if (ms <= 850) finishStage("זמן תגובה מצוין: " + ms + " מילישניות!");
+        else { renderGame(); toast("זמן תגובה: " + ms + " מילישניות. נסה להיות מהיר יותר."); }
+      }, true);
+    }
   }
 
   private void renderMath() {
