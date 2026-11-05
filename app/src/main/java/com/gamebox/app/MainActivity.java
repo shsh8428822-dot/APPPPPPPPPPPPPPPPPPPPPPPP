@@ -106,7 +106,7 @@ public class MainActivity extends Activity {
     addButton(page, "⚙  הגדרות", v -> showSettings(), false);
     addButton(page, "★  המשחקים והשלבים שלי", v -> showProgress(), false);
     addGap(page, 12);
-    TextView note = text("10 משחקים פעילים כבר עכשיו • ללא צורך באינטרנט", 13, Color.LTGRAY);
+    TextView note = text(games.length + " משחקים פעילים כבר עכשיו • ללא צורך באינטרנט", 13, Color.LTGRAY);
     note.setGravity(Gravity.CENTER);
     page.addView(note, matchWrap());
     setContentView(wrap(page));
