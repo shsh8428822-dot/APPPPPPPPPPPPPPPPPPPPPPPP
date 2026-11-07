@@ -512,10 +512,6 @@ public class MainActivity extends Activity {
     openEmbeddedLibrary("mini_games", "mini/index.html");
   }
 
-  private int dp(float value) {
-    return (int)(value * getResources().getDisplayMetrics().density + 0.5f);
-  }
-
   private void openEmbeddedLibrary(String orientationKey, String assetPage) {
     currentGame = null;
     embeddedOrientationKey = orientationKey;
