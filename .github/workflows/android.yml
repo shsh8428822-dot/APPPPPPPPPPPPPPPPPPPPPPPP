@@ -15,6 +15,21 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Fetch and prepare the 304-game Puzzle Suite
+        run: |
+          git clone --filter=blob:none https://github.com/sidhant947/Puzzle.git /tmp/gamebox-puzzle
+          git -C /tmp/gamebox-puzzle fetch --depth 1 origin 3e70679e51509bd669660b5a4556942fba48321a
+          git -C /tmp/gamebox-puzzle checkout 3e70679e51509bd669660b5a4556942fba48321a
+          python3 scripts/prepare_puzzle_suite.py /tmp/gamebox-puzzle
+          cd /tmp/gamebox-puzzle
+          flutter pub get
+          flutter build web --release --base-href /assets/puzzle/ --pwa-strategy=none
+          mkdir -p "$GITHUB_WORKSPACE/app/src/main/assets/puzzle"
+          cp -a build/web/. "$GITHUB_WORKSPACE/app/src/main/assets/puzzle/"
       - name: Build debug APK
         run: gradle assembleDebug
       - uses: actions/upload-artifact@v4
