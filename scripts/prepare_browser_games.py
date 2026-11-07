@@ -121,7 +121,12 @@ sausi_count = 0
 for game in source_games:
     source_html = sausi_root / game["path"]
     if not source_html.is_file():
-        raise SystemExit(f"Game entry is missing: {game['path']}")
+        # One upstream entry spells its HTML file "inex.html" instead of "index.html".
+        alternate_html = source_html.with_name("inex.html")
+        if alternate_html.is_file():
+            source_html = alternate_html
+        else:
+            raise SystemExit(f"Game entry is missing: {game['path']}")
     source_dir = source_html.parent
     relative_game_dir = source_dir.relative_to(sausi_root / "games")
     target_dir = dest / "sausi" / relative_game_dir
@@ -130,7 +135,7 @@ for game in source_games:
     external = patch_tree(target_dir)
     if external:
         external_report[f"sausi/{relative_game_dir.as_posix()}"] = external
-    rel_index = (Path("sausi") / relative_game_dir / "index.html").as_posix()
+    rel_index = (Path("sausi") / relative_game_dir / source_html.name).as_posix()
     slug = game.get("slug") or source_dir.name
     games.append({
         "id": f"sausi-{slug}",
