@@ -46,6 +46,7 @@ public class MainActivity extends Activity {
   private WebView puzzleWebView;
   private FrameLayout puzzleFrame;
   private Button puzzleFullscreenButton;
+  private String embeddedOrientationKey;
 
   private final Game[] games = new Game[] {
     new Game("memory", "זיכרון קלפים", "זיכרון", "מצא את כל זוגות הקלפים"),
@@ -114,10 +115,11 @@ public class MainActivity extends Activity {
     addGap(page, 18);
     addButton(page, "🎮  בחירת משחקים", v -> showCatalog("הכול"), true);
     addButton(page, "🧩  304 משחקי חשיבה ופאזלים", v -> openPuzzleSuite(), true);
+    addButton(page, "🎲  190 משחקים נוספים", v -> openMiniGames(), true);
     addButton(page, "⚙  הגדרות", v -> showSettings(), false);
     addButton(page, "★  המשחקים והשלבים שלי", v -> showProgress(), false);
     addGap(page, 12);
-    TextView note = text(games.length + " משחקים פעילים כבר עכשיו • ללא צורך באינטרנט", 13, Color.LTGRAY);
+    TextView note = text("14 משחקי בסיס + 304 פאזלים + 190 משחקי HTML5 • הכול אופליין", 13, Color.LTGRAY);
     note.setGravity(Gravity.CENTER);
     page.addView(note, matchWrap());
     setContentView(wrap(page));
@@ -501,9 +503,23 @@ public class MainActivity extends Activity {
     return (int)(value * getResources().getDisplayMetrics().density + 0.5f);
   }
 
+
   private void openPuzzleSuite() {
+    openEmbeddedLibrary("puzzle_suite", "puzzle/index.html");
+  }
+
+  private void openMiniGames() {
+    openEmbeddedLibrary("mini_games", "mini/index.html");
+  }
+
+  private int dp(float value) {
+    return (int)(value * getResources().getDisplayMetrics().density + 0.5f);
+  }
+
+  private void openEmbeddedLibrary(String orientationKey, String assetPage) {
     currentGame = null;
-    applyGameOrientation("puzzle_suite");
+    embeddedOrientationKey = orientationKey;
+    applyGameOrientation(orientationKey);
     puzzleFrame = new FrameLayout(this);
     puzzleWebView = new WebView(this);
     WebSettings settings = puzzleWebView.getSettings();
@@ -536,19 +552,19 @@ public class MainActivity extends Activity {
     toolbar.setPadding(dp(4), dp(4), dp(4), dp(4));
     toolbar.setBackgroundColor(Color.rgb(8, 25, 17));
     Button back = smallButton("חזרה");
-    back.setOnClickListener(v -> closePuzzleSuite());
+    back.setOnClickListener(v -> closeEmbeddedLibrary());
     toolbar.addView(back, new LinearLayout.LayoutParams(0, dp(44), 1.1f));
 
     Button portrait = smallButton("לאורך");
-    portrait.setOnClickListener(v -> setPuzzleOrientation("portrait"));
+    portrait.setOnClickListener(v -> setEmbeddedOrientation(orientationKey, "portrait"));
     toolbar.addView(portrait, new LinearLayout.LayoutParams(0, dp(44), 1));
 
     Button landscape = smallButton("לרוחב");
-    landscape.setOnClickListener(v -> setPuzzleOrientation("landscape"));
+    landscape.setOnClickListener(v -> setEmbeddedOrientation(orientationKey, "landscape"));
     toolbar.addView(landscape, new LinearLayout.LayoutParams(0, dp(44), 1));
 
     puzzleFullscreenButton = smallButton("⛶ מסך מלא");
-    puzzleFullscreenButton.setOnClickListener(v -> togglePuzzleFullscreen());
+    puzzleFullscreenButton.setOnClickListener(v -> toggleEmbeddedFullscreen());
     toolbar.addView(puzzleFullscreenButton, new LinearLayout.LayoutParams(0, dp(44), 1.4f));
 
     FrameLayout.LayoutParams barParams = new FrameLayout.LayoutParams(
@@ -558,16 +574,20 @@ public class MainActivity extends Activity {
     contentParams.topMargin = dp(52);
     puzzleWebView.setLayoutParams(contentParams);
     setContentView(puzzleFrame);
-    puzzleWebView.loadUrl("https://appassets.androidplatform.net/assets/puzzle/index.html");
+    puzzleWebView.loadUrl("https://appassets.androidplatform.net/assets/" + assetPage);
+  }
+
+  private void setEmbeddedOrientation(String key, String value) {
+    prefs.edit().putString("orientation_" + key, value).apply();
+    applyOrientation(value);
+    toast("כיוון המסך נשמר");
   }
 
   private void setPuzzleOrientation(String value) {
-    prefs.edit().putString("orientation_puzzle_suite", value).apply();
-    applyOrientation(value);
-    toast("כיוון משחקי החשיבה נשמר");
+    setEmbeddedOrientation("puzzle_suite", value);
   }
 
-  private void togglePuzzleFullscreen() {
+  private void toggleEmbeddedFullscreen() {
     boolean enabled = !prefs.getBoolean("fullscreen", false);
     prefs.edit().putBoolean("fullscreen", enabled).apply();
     applyFullscreen(enabled);
@@ -576,7 +596,7 @@ public class MainActivity extends Activity {
     }
   }
 
-  private void closePuzzleSuite() {
+  private void closeEmbeddedLibrary() {
     applyFullscreen(false);
     prefs.edit().putBoolean("fullscreen", false).apply();
     if (puzzleWebView != null) {
@@ -588,6 +608,7 @@ public class MainActivity extends Activity {
     }
     puzzleFrame = null;
     puzzleFullscreenButton = null;
+    embeddedOrientationKey = null;
     showHome();
   }
 
@@ -602,6 +623,9 @@ public class MainActivity extends Activity {
     addButton(page,"כיוון משחקי החשיבה – אוטומטי",v->setPuzzleOrientation("system"),false);
     addButton(page,"כיוון משחקי החשיבה – לאורך",v->setPuzzleOrientation("portrait"),false);
     addButton(page,"כיוון משחקי החשיבה – לרוחב",v->setPuzzleOrientation("landscape"),false);
+    addButton(page,"כיוון 190 המשחקים הנוספים – אוטומטי",v->setEmbeddedOrientation("mini_games","system"),false);
+    addButton(page,"כיוון 190 המשחקים הנוספים – לאורך",v->setEmbeddedOrientation("mini_games","portrait"),false);
+    addButton(page,"כיוון 190 המשחקים הנוספים – לרוחב",v->setEmbeddedOrientation("mini_games","landscape"),false);
     addButton(page,"איפוס התקדמות",v->new android.app.AlertDialog.Builder(this).setTitle("איפוס נתונים").setMessage("למחוק את כל השלבים והסטטיסטיקה?").setNegativeButton("ביטול",null).setPositiveButton("אפס",(d,w)->{prefs.edit().clear().apply();gamesPlayed=0;showHome();}).show(),false);
     addButton(page,"חזרה",v->showHome(),false);
     setContentView(wrap(page));
@@ -683,7 +707,7 @@ public class MainActivity extends Activity {
   private EditText edit(String hint){EditText e=new EditText(this);e.setSingleLine(true);e.setTextColor(Color.WHITE);e.setHintTextColor(LIGHT);e.setHint(hint);e.setTextSize(18);e.setPadding(14,8,14,8);e.setBackgroundTintList(android.content.res.ColorStateList.valueOf(GREEN));return e;}
   private LinearLayout.LayoutParams matchWrap(){return new LinearLayout.LayoutParams(-1,LinearLayout.LayoutParams.WRAP_CONTENT);}
   private void addGap(LinearLayout p,int h){View v=new View(this);p.addView(v,new LinearLayout.LayoutParams(1,h));}
-  @Override public void onBackPressed(){if(puzzleWebView!=null){closePuzzleSuite();return;}if(currentGame!=null)showCatalog("הכול");else showHome();}
+  @Override public void onBackPressed(){if(puzzleWebView!=null){closeEmbeddedLibrary();return;}if(currentGame!=null)showCatalog("הכול");else showHome();}
 
   @Override protected void onDestroy(){if(puzzleWebView!=null){puzzleWebView.stopLoading();puzzleWebView.destroy();puzzleWebView=null;}if(tone!=null)tone.release();super.onDestroy();}
 

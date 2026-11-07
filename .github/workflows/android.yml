@@ -30,6 +30,15 @@ jobs:
           flutter build web --release --base-href /assets/puzzle/ --pwa-strategy=none
           mkdir -p "$GITHUB_WORKSPACE/app/src/main/assets/puzzle"
           cp -a build/web/. "$GITHUB_WORKSPACE/app/src/main/assets/puzzle/"
+      - name: Fetch and prepare 190 additional offline HTML5 games
+        run: |
+          git clone --filter=blob:none --no-checkout https://github.com/sausi-7/games.git /tmp/sausi-games
+          git -C /tmp/sausi-games fetch --depth 1 origin c97ef8bec4a4ce3154b4345a79aeda3ea2a6a465
+          git -C /tmp/sausi-games checkout c97ef8bec4a4ce3154b4345a79aeda3ea2a6a465 -- games LICENSE
+          git clone --depth 1 https://github.com/mashukui/web-games.git /tmp/mashukui-web-games
+          git -C /tmp/mashukui-web-games fetch --depth 1 origin 2770860c6e2b3ab8144a56462d8178fe7e3445c7
+          git -C /tmp/mashukui-web-games checkout 2770860c6e2b3ab8144a56462d8178fe7e3445c7
+          python3 scripts/prepare_browser_games.py /tmp/sausi-games /tmp/mashukui-web-games app/src/main/assets/mini
       - name: Build debug APK
         run: gradle assembleDebug
       - uses: actions/upload-artifact@v4
