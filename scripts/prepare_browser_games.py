@@ -59,6 +59,8 @@ games = []
 cdn_cache: dict[str, Path] = {}
 cdn_pattern = re.compile(
     r"https://cdn\.jsdelivr\.net/npm/(phaser|three)@([^/]+)/([^\"'\s]+)"
+    r"|https://cdnjs\.cloudflare\.com/ajax/libs/three\.js/([^/]+)/three\.min\.js"
+    r"|https://unpkg\.com/three@([^/]+)/build/three\.min\.js"
 )
 font_link_pattern = re.compile(
     r"<link\b[^>]*href=[\"']https?://fonts\.googleapis\.com[^\"']*[\"'][^>]*>",
@@ -70,7 +72,12 @@ font_import_pattern = re.compile(
 )
 
 def vendor_cdn(match: re.Match[str], file_path: Path) -> str:
-    library, version, asset_path = match.group(1), match.group(2), match.group(3)
+    if match.group(1):
+        library, version, asset_path = match.group(1), match.group(2), match.group(3)
+    elif match.group(4):
+        library, version, asset_path = "three", match.group(4), "three.min.js"
+    else:
+        library, version, asset_path = "three", match.group(5), "three.min.js"
     asset_path = asset_path.split("?", 1)[0]
     suffix = "module" if "module" in asset_path else "min"
     key = f"{library}-{version}-{suffix}"
